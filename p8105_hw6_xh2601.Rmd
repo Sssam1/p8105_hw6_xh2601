@@ -6,6 +6,7 @@ output: github_document
 ```{r setup, message = FALSE}
 # load the tidyverse library
 library(tidyverse)
+library(modelr)
 ```
 
 The general format for plots making
@@ -133,5 +134,111 @@ homicide_sex |>
 Based on the plot, most cities have estimated odds ratios below 1, indicating that homicides involving male victims are less likely to be solved compared to those involving female victims, after adjusting for age and race. However, some of these odds ratios are not statistically significant, as their confidence intervals include 1. Only a few cities show odds ratios above 1, suggesting male-victim homicides being more likely to be solved, but none of these estimates are statistically significant, as their confidence intervals all span 1. Overall, in most cities, the odds of a homicide being solved are lower for male victims when compared to female victims, adjusted for age and race, although the statistical significance varies by city and is often inconclusive due to wide confidence intervals.
 
 ## Problem 2
+
+1. For this problem, we’ll use the Central Park weather data we’ve seen elsewhere. The code chunk below will import these data from the p8105.datasets package. We’ll focus on a simple linear regression with tmax as the response with tmin and prcp as the predictors, and are interested in the distribution of two quantities estimated from these data: r_hat square, beta1_hat/beta2_hat
+
+```{r}
+# load package
+library(p8105.datasets)
+data("weather_df")
+```
+
+```{r}
+# clean the dataset with CentralPark_NY and variables of interest
+weather_df = weather_df |> 
+  filter(name == "CentralPark_NY") |> 
+  select(tmin, prcp, tmax)
+```
+
+2. Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. 
+
+```{r}
+# create a function to get the beta ratio for beta1 = tmin, beta2 = prcp
+get_beta_ratio = function(model) {
+  coefs = broom::tidy(model)
+  beta1 = coefs$estimate[coefs$term == "tmin"]
+  beta2 = coefs$estimate[coefs$term == "prcp"]
+  beta1 / beta2
+}
+```
+
+```{r}
+# bootstrap for 5000 samples, fit linear model, and get estimates
+bootstrap_weather = weather_df |> 
+  bootstrap(n = 5000) |> 
+  mutate(
+    df = map(strap, as_tibble),
+    models = map(df, \(df) lm(tmax ~ tmin + prcp, data = df) ),
+    r2 = map_dbl(models, \(m) broom::glance(m)$r.squared),
+    beta_ratio = map_dbl(models, get_beta_ratio)) |> 
+  select(-strap, -models, -df)
+bootstrap_weather
+```
+
+3. Plot the distribution of your estimates, and describe these in words. 
+
+```{r}
+# density plot for r^2
+bootstrap_weather |> 
+  ggplot(aes(x = r2)) +
+  geom_density(fill = "skyblue", alpha = 0.8) +
+  labs(
+    x = "R-squared",
+    title = "Bootstrap Distribution of R-squared")
+```
+
+The distribution of r_hat square in bootstrap samples is unimodal and approximately symmetric around 0.913, and slightly left skewed. The distribution means the r_hat square estimates are relatively stable, so the linear model using tmin and prcp as predictors could explain about 91% of changes in tmax.
+
+```{r}
+bootstrap_weather |> 
+  ggplot(aes(x = beta_ratio)) +
+  geom_density(fill = "skyblue", alpha = 0.8) +
+  labs(
+    x = "Beta Ratio",
+    title = "Bootstrap Distribution of Beta Ratio")
+```
+
+
+```{r}
+bootstrap_weather |>
+  ggplot(aes(x = beta_ratio)) +
+  geom_density(fill = "skyblue", alpha = 0.8) +
+  coord_cartesian(ylim = c(0, 0.00001))
+```
+
+
+```{r}
+lower = quantile(bootstrap_weather$beta_ratio, 0.01, na.rm = TRUE)
+upper = quantile(bootstrap_weather$beta_ratio, 0.99, na.rm = TRUE)
+
+clean_data = bootstrap_weather |> 
+  filter(beta_ratio > lower, beta_ratio < upper)
+
+ggplot(clean_data, aes(beta_ratio)) +
+  geom_density(fill = "skyblue", alpha = 0.8)
+```
+
+
+```{r}
+summary(bootstrap_weather$beta_ratio)
+```
+
+
+4. Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval
+
+```{r}
+# get 95% CI for both 
+ci_results = bootstrap_weather |> 
+  summarize(
+    r2_ci_lower = quantile(r2, 0.025), 
+    r2_ci_upper = quantile(r2, 0.975),
+    beta_ratio_ci_lower = quantile(beta_ratio, 0.025), 
+    beta_ratio_ci_upper = quantile(beta_ratio, 0.975))
+ci_results
+```
+
+The 95% confidence interval for R-squared is `r ci_results$r2_ci_lower` to `r ci_results$r2_ci_upper`, the The 95% confidence interval for beta ratio is `r ci_results$beta_ratio_ci_lower` to `r ci_results$beta_ratio_ci_upper`.
+
+
 ## Problem 3
 
