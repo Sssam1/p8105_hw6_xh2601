@@ -1,0 +1,137 @@
+---
+title: "p8105_hw6_xh2601"
+output: github_document
+---
+
+```{r setup, message = FALSE}
+# load the tidyverse library
+library(tidyverse)
+```
+
+The general format for plots making
+
+```{r}
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .8,
+  out.width = "90%",
+  dpi = 200
+)
+
+theme_set(
+  theme_minimal() + 
+    theme(legend.position = "bottom",
+          plot.title = element_text(hjust = 0.5))
+)
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+## Problem 1
+
+1. Create a city_state variable (e.g. “Baltimore, MD”), and a binary variable indicating whether the homicide is solved. Omit cities Dallas, TX; Phoenix, AZ; and Kansas City, MO – these don’t report victim race. Also omit Tulsa, AL – this is a data entry mistake. For this problem, limit your analysis those for whom victim_race is white or black. Be sure that victim_age is numeric.
+
+```{r}
+# import the dataset
+# use mutate() to create the city_state variable
+# use mutate() to create a variable to indicate whether the case is unsolved
+# use mutate() to make sure victim_age is numeric
+# use filter() remove the unwanted rows
+homicide_df = read_csv("data/homicide-data.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    city_state = str_c(city, ", ", state),
+    solved = (!disposition %in% c("Closed without arrest", "Open/No arrest")),
+    victim_age = as.numeric(victim_age)
+  ) |> 
+  filter(
+    !city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"),
+    victim_race %in% c("White", "Black")
+  )
+```
+
+2. For the city of Baltimore, MD, use the glm function to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors. Save the output of glm as an R object; apply the broom::tidy to this object; and obtain the estimate and confidence interval of the adjusted odds ratio for solving homicides comparing male victims to female victims keeping all other variables fixed.
+
+```{r}
+# create a df for baltimore
+# select variables of interest
+baltimore_df = homicide_df |> 
+  filter(city_state == "Baltimore, MD") |> 
+  select(uid, victim_race, victim_age, victim_sex, solved)
+
+# fit glm logistic model 
+# apply broom::tidy() and exponentiate the estimate
+baltimore_logit = 
+  glm(
+    solved ~ victim_race + victim_age + victim_sex,
+    data = baltimore_df,
+    family = binomial(link = "logit")) |> 
+  broom::tidy(
+    exponentiate = TRUE,
+    conf.int = TRUE)
+
+# get odds ration estimate and CI
+baltimore_logit |> 
+  filter(term == "victim_sexMale") |> 
+  select(term, estimate, conf.low, conf.high) |> 
+  knitr::kable()
+```
+
+3. Now run glm for each of the cities in your dataset, and extract the adjusted odds ratio (and CI) for solving homicides comparing male victims to female victims. Do this within a “tidy” pipeline, making use of purrr::map, list columns, and unnest as necessary to create a dataframe with estimated ORs and CIs for each city.
+
+```{r}
+# create a function to fit logistic regression for each city
+homicide_sex_logit = function(df){
+  glm(
+    solved ~ victim_race + victim_age + victim_sex,
+    data = df,
+    family = binomial(link = "logit")) |> 
+  broom::tidy(
+    exponentiate = TRUE,
+    conf.int = TRUE) |> 
+  filter(term == "victim_sexMale") |> 
+  select(term, estimate, conf.low, conf.high)
+}
+```
+
+```{r}
+# select the variables of interest, nest on city_state
+# map on the homicide_sex_logit() function for each nested dataframe
+# unnest the result
+homicide_sex = homicide_df |> 
+  select(uid, city_state, victim_race, victim_age, victim_sex, solved) |> 
+  nest(data = -city_state) |> 
+  mutate(
+    results = map(data, homicide_sex_logit)
+  ) |> 
+  select(-data) |> 
+  unnest()
+homicide_sex
+```
+
+4. Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot.
+
+```{r}
+homicide_sex |> 
+  mutate(city_state = fct_reorder(city_state, estimate)) |> 
+  ggplot(aes(x = estimate, y = city_state)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  labs(
+    x = "Estimated Odds Ratio and 95% CI for Solving Homicides (Male vs Female)",
+    y = "City, State",
+    title = "Estimated Odds Ratios (Male vs Female) for Solving Homicides by City \n(adjusted for age and race)"
+  )
+```
+
+Based on the plot, most cities have estimated odds ratios below 1, indicating that homicides involving male victims are less likely to be solved compared to those involving female victims, after adjusting for age and race. However, some of these odds ratios are not statistically significant, as their confidence intervals include 1. Only a few cities show odds ratios above 1, suggesting male-victim homicides being more likely to be solved, but none of these estimates are statistically significant, as their confidence intervals all span 1. Overall, in most cities, the odds of a homicide being solved are lower for male victims when compared to female victims, adjusted for age and race, although the statistical significance varies by city and is often inconclusive due to wide confidence intervals.
+
+## Problem 2
+## Problem 3
+
