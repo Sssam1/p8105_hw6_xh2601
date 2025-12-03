@@ -254,7 +254,7 @@ sum(is.na(birthweight_df))
 
 2. Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 
-**Model building:** Birthweight is influenced by a combination of maternal physiological characteristics and pregnancy-related developmental factors. Maternal height and pre-pregnancy weight reflect long-term nutritional status and genetic influences on fetal growth. In addition, weight gain during pregnancy and gestational age in weeks are indicators of the adequacy of fetal development and duration of intrauterine growth. Consistent with findings reported in the [literature](https://pmc.ncbi.nlm.nih.gov/articles/PMC11608488/), maternal height, pre-pregnancy weight, and pregnancy weight gain were consistently associated with birthweight. Based on these hypothesized mechanisms and empirical support, I propose a regression model using maternal pre-pregnancy BMI (**ppbmi**), mother’s weight gain during pregnancy in pounds (**wtgain**), and gestational age in weeks (**gaweeks**), as the predictors of baby’s birth weight in grams(**bwt**).
+**Model building:** Birthweight is influenced by a combination of maternal physiological characteristics and pregnancy-related developmental factors. Maternal height and pre-pregnancy weight reflect long-term nutritional status and genetic influences on fetal growth. In addition, weight gain during pregnancy and gestational age in weeks are indicators of the adequacy of fetal development and duration of intrauterine growth. Consistent with findings reported in the [literature](https://pmc.ncbi.nlm.nih.gov/articles/PMC11608488/), maternal height, pre-pregnancy weight, and pregnancy weight gain were consistently associated with birthweight. Based on these hypothesized mechanisms and empirical support, I propose a regression model using maternal pre-pregnancy BMI (**ppbmi**), mother’s weight gain during pregnancy in pounds (**wtgain**), and gestational age in weeks (**gaweeks**), as the predictors of baby’s birth weight in grams (**bwt**).
 
 ```{r}
 # construct my model
@@ -327,16 +327,6 @@ cv_df =
     rmse_2 = map2_dbl(fit_2, test, \(mod, df) rmse(model = mod, data = df))
   )
 
-# make comparison in table
-cv_df |> 
-  select(starts_with("rmse")) |> 
-  summarize(
-    proposed_model = mean(rmse_bwt),
-    model_1 = mean(rmse_1),
-    model_2 = mean(rmse_2),
-  ) |> 
-  knitr::kable(caption = "Mean RMSE for Three Models")
-
 # make comparison in plot
 cv_df |> 
   select(starts_with("rmse")) |> 
@@ -357,7 +347,7 @@ cv_df |>
   )
 ```
 
-As shown in both the summary table and the RMSE distributions, Model 2 has the smallest prediction error, while my proposed model has the largest RMSE. This indicates that Model 2 provides the most accurate predictions of birth weight among the three models, suggesting that maternal characteristics alone are less informative for predicting baby birth weight compared with newborn measurements and their interactions. 
+As shown in the RMSE distributions, Model 2 has the smallest prediction error, while my proposed model has the largest RMSE. This indicates that Model 2 provides the most accurate predictions of birth weight among the three models, suggesting that maternal characteristics alone are less informative for predicting baby birth weight compared with newborn measurements and their interactions. 
 
 
 
