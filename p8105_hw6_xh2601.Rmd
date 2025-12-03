@@ -200,19 +200,19 @@ bootstrap_weather |>
     title = "Bootstrap Distribution of Beta Ratio")
 ```
 
-The bootstrap distribution of the beta ratio shows a sharp peak near 0, with extremely long tails on both sides of the density plot. The long-tailed shape occurs because precipitation (prcp) takes the value zero on most days in the original dataset, so many bootstrap samples contain little or no variation in prcp. In such samples, the estimated coefficient beta2 for prcp approaches zero, causing the ratio of beta1 / beta2 to explode to extremely large absolute values.
+The bootstrap distribution of the beta ratio shows a sharp peak near 0, with extremely long tails on both sides of the density plot. The long-tailed shape occurs because precipitation (prcp) takes the value zero on for more than half of the days in the original dataset, so many bootstrap samples contain little variation in prcp. In such samples, the estimated coefficient beta2 for prcp would be very small, causing the ratio of beta1 / beta2 to explode to extremely large absolute values, especially on the negative side.
 
-To visualize the central behavior of the ratio, the following histogram looks at only the middle 98% of the bootstrap distribution (the 1%–99% interval). Within this trimmed range, the majority of values cluster around a central peak, while the tails remain wide. This reflects instability in the denominator beta2, and the ratio is not a meaningful or interpretable relationship between the predictors tmin and prcp in this sample.
+To visualize the central behavior of the ratio, the following histogram looks at only the middle 98% of the bootstrap distribution (the 1%–99% interval). Within this trimmed range, the majority of values cluster around a central peak on a negative ratio, while both tails remain wide. This reflects instability in the denominator beta2, and the ratio is hard to be interpreted in this sample.
 
 ```{r}
 # only plot between 1%-99% interval
 small_ratio = quantile(bootstrap_weather$beta_ratio, 0.01, na.rm = TRUE)
 large_ratio = quantile(bootstrap_weather$beta_ratio, 0.99, na.rm = TRUE)
 
-clean_data = bootstrap_weather |> 
+interval_data = bootstrap_weather |> 
   filter(beta_ratio > small_ratio, beta_ratio < large_ratio)
 
-ggplot(clean_data, aes(beta_ratio)) +
+ggplot(interval_data, aes(beta_ratio)) +
   geom_histogram(fill = "skyblue", alpha = 0.8) +
   labs(
     x = "Beta Ratio",
